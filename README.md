@@ -1,0 +1,2 @@
+# sqltunning
+sql tunning study
