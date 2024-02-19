@@ -143,3 +143,74 @@ select * from kosta.emp where empno > 7400 and ename = 'JAMES';
 
 [autotrace]
 set autotrace on;
+
+
+[dispaly cursor 설정 전에 레벨 조정]  
+alter session set statistics_level = ALL;  
+
+
+select /*+gather_plan_statistics*/ * from kosta.emp inner join kosta.dept on emp.deptno = dept.deptno where empno = 7900;
+select * from table(DBMS_XPLAN.DISPLAY_CURSOR(null, null, 'ALLSTATS LAST'));
+
+
+[10046 trace]
+실측정보
+SPID 확인 -> Trace 활성화 -> Trace 비활성화 -> Session 종료
+
+1. SPID 확인
+select p.spid from v$process p, v$session s
+where p.addr = s.paddr
+and s.audsid = USERENV('SESSIONID');
+
+34712
+2. Trace 활성화
+alter session set sql_trace = true;
+alter session set timed_statistics = true;
+alter session set events '10046 trace name context  forever, level 12';
+
+2-1. trc 파일 생성 위치 확인
+show parameter user_dump_dest;
+NAME                                 TYPE                   VALUE
+------------------------------------ ---------------------- ------------------------------
+user_dump_dest                       string                 C:\oraclexe\app\oracle\diag\rdbms\xe\xe\trace
+
+3. 여러가지 sql 문장 실행
+
+
+4. 종료
+alter session set sql_trace = false;
+
+5. 파일을 열어 분석하거나 tkprof 이용
+5.1 파일
+C:\oraclexe\app\oracle\diag\rdbms\xe\xe\trace\xe_ora_34712.trc
+
+5.2 tkprof
+c:\study\sql>tkprof C:\oraclexe\app\oracle\diag\rdbms\xe\xe\trace\xe_ora_34712.trc
+output = c:\study\sql\result.txt
+
+6. 다른 세션 모니터링
+Exec dbms_monitor.session_trace_enable(session_id => 1, serial_num => 1, waits => true, binds => true);
+Exec dbms_monitor.session_trace_disable(session_id => 1, serial_num => 1);
+
+7. 단위 모니터링 (SID 단위 등)
+Exec dbms_monitor.serv_mod_act_trace_enable(
+    service_name => 'ORCL', module_name => dbms_monitor.all_module, action_name -> dbms_monitor.all_actions, waits => true, binds => true
+);
+
+[튜닝을 위한 데이터 베이스 설정]
+
+set linesize 200
+set pagesize 100
+
+# 아래는 운영 서버에서 하지 말길
+Alter system flush shared_pool;
+Alter system flush buffer_cache;
+
+
+[힌트사용]
+1. 힌트 구문
+SQL 문을 바꾸지 않고 옵티마이저에게 지시하는 구문
+힌트사용 : SELECT /*+ 힌트문 */ COLUMN_1, COLUMN_2 FROM TABLE
+
+2. 힌트 사용 용도
+액세스 경로, 조인 순서, 처리 방법, 데이터값 정렬, 드라이빙 테이블 선정 등
